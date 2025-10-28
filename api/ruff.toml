@@ -1,0 +1,18 @@
+line-length = 100
+target-version = "py312"
+
+[lint]
+# Basic style & errors + import sorting
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort-like import sorting
+]
+ignore = [
+    "E501", # line too long (handled by formatter)
+]
+
+[format]
+quote-style = "double"
+preview = true
