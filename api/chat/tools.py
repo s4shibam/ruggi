@@ -3,12 +3,17 @@ from __future__ import annotations
 import logging
 from typing import Any, Optional
 
+from django.db.models import Value
+from langchain.tools import tool
+from langchain_core.embeddings import Embeddings
+from pgvector.django import CosineDistance
+
 from common.constants import (
     DOC_STATUS_COMPLETED,
     MAX_FULL_DOCUMENT_CHARS,
     WARN_FULL_DOCUMENT_CHARS,
 )
-from document.models import Document
+from document.models import Document, DocumentChunk
 
 logger = logging.getLogger(__name__)
 
@@ -24,11 +29,143 @@ def truncate_chunk_text(text: str, limit: int = CHUNK_SNIPPET_LENGTH) -> str:
     return text[:limit] + "..."
 
 
-def create_tools(
+def _execute_semantic_search(
+    *,
+    embeddings_model: Embeddings,
+    queries: list[str],
+    attached_document_ids: list[str],
     user,
-):
-    """Create tools with injected dependencies."""
+    allow_all_when_no_attachment: bool = True,
+    top_k: int = DEFAULT_TOP_K,
+) -> tuple[dict[str, Any], set[str], set[str]]:
+    """Internal function to execute semantic search."""
+    if not attached_document_ids:
+        if not allow_all_when_no_attachment:
+            return (
+                {
+                    "queries_executed": queries,
+                    "chunks": [],
+                    "message": "No documents are attached to this conversation.",
+                    "document_ids_searched": [],
+                    "search_scope": "no_documents",
+                },
+                set(),
+                set(),
+            )
 
+    if not queries:
+        return (
+            {
+                "queries_executed": [],
+                "chunks": [],
+                "message": "No queries provided for semantic search.",
+                "document_ids_searched": attached_document_ids,
+                "search_scope": "attached_documents"
+                if attached_document_ids
+                else "all_user_documents",
+            },
+            set(),
+            set(),
+        )
+
+    # Generate embeddings using LangChain Embeddings
+    embeddings = embeddings_model.embed_documents(queries)
+
+    combined_results: dict[str, dict[str, Any]] = {}
+    document_ids_used: set[str] = set()
+
+    top_k = max(1, min(int(top_k or DEFAULT_TOP_K), 20))
+
+    if attached_document_ids:
+        base_queryset = DocumentChunk.objects.filter(
+            document_id__in=attached_document_ids,
+            document__status=DOC_STATUS_COMPLETED,
+        ).select_related("document")
+        search_scope = "attached_documents"
+    else:
+        base_queryset = (
+            DocumentChunk.objects
+            .filter(
+                document__owner=user,
+                document__status=DOC_STATUS_COMPLETED,
+            )
+            .select_related("document")
+            .all()
+        )
+        search_scope = "all_user_documents"
+
+    for embedding in embeddings:
+        chunks = base_queryset.annotate(
+            similarity=Value(1.0) - CosineDistance("embedding", embedding)
+        ).order_by("-similarity")[:top_k]
+
+        for chunk in chunks:
+            chunk_id_str = str(chunk.id)
+            if chunk_id_str not in combined_results:
+                combined_results[chunk_id_str] = {
+                    "chunk_id": chunk_id_str,
+                    "document_id": str(chunk.document_id),
+                    "document_title": chunk.document.title,
+                    "chunk_text": truncate_chunk_text(chunk.text),
+                    "chunk_order": chunk.order,
+                    "scores": [],
+                }
+            combined_results[chunk_id_str]["scores"].append(float(chunk.similarity))
+            document_ids_used.add(str(chunk.document_id))
+
+    ranked_chunks: list[dict[str, Any]] = []
+    for entry in combined_results.values():
+        scores = entry.pop("scores", [])
+        average_score = sum(scores) / len(scores) if scores else 0.0
+        entry["similarity_score"] = round(average_score, 6)
+        ranked_chunks.append(entry)
+
+    ranked_chunks.sort(key=lambda item: item["similarity_score"], reverse=True)
+    selected_chunks = ranked_chunks[:top_k]
+
+    return (
+        {
+            "queries_executed": queries,
+            "chunks": selected_chunks,
+            "document_ids_searched": attached_document_ids
+            if attached_document_ids
+            else sorted(document_ids_used),
+            "search_scope": search_scope,
+        },
+        {chunk["chunk_id"] for chunk in selected_chunks},
+        document_ids_used,
+    )
+
+
+def create_tools(embeddings_model: Embeddings, user, attached_document_ids: list[str]):
+    """Create LangChain tools with injected dependencies."""
+
+    @tool
+    def semantic_search(
+        queries: list[str],
+        top_k: int = DEFAULT_TOP_K,
+    ) -> dict[str, Any]:
+        """Search for relevant content in attached documents using semantic similarity.
+
+        Uses multi-query retrieval for better results.
+
+        Args:
+            queries: Multiple query variations to search for (2-4 queries recommended for better retrieval)
+            top_k: Number of top results to return per query (default: 5)
+
+        Returns:
+            Dictionary containing search results with chunks, document IDs, and search scope.
+        """
+        result, _, _ = _execute_semantic_search(
+            embeddings_model=embeddings_model,
+            queries=queries[:MAX_QUERY_VARIATIONS],
+            attached_document_ids=attached_document_ids,
+            user=user,
+            top_k=top_k,
+        )
+        return result
+
+    @tool
     def list_documents(
         status: Optional[str] = None,
         limit: int = 20,
@@ -63,11 +200,18 @@ def create_tools(
             ]
         }
 
+    @tool
     def get_full_document(document_id: str) -> dict[str, Any]:
         """Retrieve the complete text content of a specific document.
 
         Use this when you need to read the entire document, not just search results.
         This reconstructs the full text from document chunks.
+
+        WARNING: Full documents can be very large and consume significant context.
+        Use semantic_search for most queries. Only use this when:
+        - User explicitly asks to "read the full document"
+        - You need complete sequential context (e.g., reading a story, following a procedure)
+        - Semantic search doesn't return sufficient information
 
         Args:
             document_id: The UUID of the document to retrieve
@@ -134,4 +278,4 @@ def create_tools(
                 "document_id": document_id,
             }
 
-    return [list_documents, get_full_document]
+    return [semantic_search, list_documents, get_full_document]
