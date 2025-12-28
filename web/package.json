@@ -42,7 +42,7 @@
     "tailwindcss": "^4.1.17"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.3.2",
+    "@biomejs/biome": "^2.3.10",
     "@tanstack/react-query-devtools": "^5.91.1",
     "@tanstack/router-plugin": "^1.139.11",
     "@types/node": "^24.10.1",
