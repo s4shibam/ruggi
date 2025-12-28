@@ -100,11 +100,21 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-CORS_ALLOWED_ORIGINS = [
-    o.strip()
-    for o in os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000").split(",")
-    if o.strip()
-]
+# CORS configuration
+cors_origins_env = os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000")
+if cors_origins_env.strip() == "*":
+    # Allow all origins in development
+    CORS_ALLOW_ALL_ORIGINS = True
+    CORS_ALLOWED_ORIGINS = []
+    CSRF_TRUSTED_ORIGINS = []
+else:
+    # Use specific origins
+    CORS_ALLOW_ALL_ORIGINS = False
+    CORS_ALLOWED_ORIGINS = [
+        o.strip() for o in cors_origins_env.split(",") if o.strip() and o.strip() != "*"
+    ]
+    CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS.copy()
+
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = [
     "accept",
@@ -114,12 +124,6 @@ CORS_ALLOW_HEADERS = [
     "x-csrftoken",
     "x-requested-with",
     "ngrok-skip-browser-warning",
-]
-
-CSRF_TRUSTED_ORIGINS = [
-    o.strip()
-    for o in os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000").split(",")
-    if o.strip()
 ]
 
 SESSION_COOKIE_SAMESITE = "None" if not DEBUG else "Lax"
