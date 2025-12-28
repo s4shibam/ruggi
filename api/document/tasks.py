@@ -68,7 +68,8 @@ def process_document_task(self, document_id: str) -> None:
 def enqueue_unprocessed_documents(self) -> None:
     stale_before = timezone.now() - timedelta(minutes=1)
     queued_ids = list(
-        Document.objects.filter(status=DOC_STATUS_QUEUED, updated_at__lte=stale_before)
+        Document.objects
+        .filter(status=DOC_STATUS_QUEUED, updated_at__lte=stale_before)
         .order_by("created_at")
         .values_list("id", flat=True)[:200]
     )
