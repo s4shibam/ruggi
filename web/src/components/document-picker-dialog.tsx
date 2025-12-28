@@ -5,11 +5,11 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { cn } from '@/lib/utils'
 import type { TDocument } from '@/types/models'
 
 import { Label } from './ui/label'
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip'
-import { cn } from '@/lib/utils'
 
 type TDocumentPickerDialogProps = {
   open: boolean
@@ -92,8 +92,8 @@ export const DocumentPickerDialog = ({
                         <Label
                           key={doc.id}
                           className={cn(
-                            "flex cursor-pointer items-center gap-3 rounded-lg border bg-card p-3 transition-all hover:border-accent hover:bg-accent/25",
-                            isSelected && "border-primary bg-primary/5"
+                            'flex cursor-pointer items-center gap-3 rounded-lg border bg-card p-3 transition-all hover:border-accent hover:bg-accent/25',
+                            isSelected && 'border-primary bg-primary/5'
                           )}
                         >
                           <Checkbox checked={isSelected} onCheckedChange={() => onToggleDocument(doc)} />

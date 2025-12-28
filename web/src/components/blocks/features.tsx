@@ -105,7 +105,7 @@ const FeatureCard = ({ feature, index }: { feature: (typeof FEATURES)[0]; index:
       </motion.div>
 
       <div className="relative">
-        <p className="-translate-x-6 absolute h-6 w-1 rounded-r-md bg-primary"></p>
+        <p className="absolute h-6 w-1 -translate-x-6 rounded-r-md bg-primary"></p>
         <motion.h3
           initial={{ opacity: 0, x: -10 }}
           animate={isInView ? { opacity: 1, x: 0 } : { opacity: 0, x: -10 }}

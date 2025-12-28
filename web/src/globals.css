@@ -1,10 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800&display=swap");
 
-@import 'tailwindcss';
-@import 'tw-animate-css';
-@import 'lenis/dist/lenis.css';
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "lenis/dist/lenis.css";
 
-@source '../../../node_modules/streamdown/dist/*.js';
+@source "../../../node_modules/streamdown/dist/*.js";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -16,7 +16,7 @@
 }
 
 @theme inline {
-  --font-lexend: 'Lexend', 'Segoe UI', sans-serif;
+  --font-lexend: "Lexend", "Segoe UI", sans-serif;
 
   --text-2xs: 0.625rem;
   --text-2xs--line-height: 1rem;
@@ -121,49 +121,49 @@
   }
 }
 
-[data-streamdown='link'] {
+[data-streamdown="link"] {
   @apply text-indigo-600 font-semibold no-underline hover:underline;
 }
 
-[data-streamdown='table-wrapper'] {
+[data-streamdown="table-wrapper"] {
   @apply rounded-lg relative overflow-hidden;
 }
 
-[data-streamdown='table-wrapper'] > div:first-child {
+[data-streamdown="table-wrapper"] > div:first-child {
   @apply px-2 py-1 rounded-md absolute top-[3.5px] z-10 right-[3.5px] bg-background;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.15s ease;
 }
 
-[data-streamdown='table-wrapper']:hover > div:first-child {
+[data-streamdown="table-wrapper"]:hover > div:first-child {
   @apply opacity-100 pointer-events-auto;
 }
 
-[data-streamdown='table-header'] {
+[data-streamdown="table-header"] {
   @apply bg-muted;
 }
 
-[data-streamdown='inline-code'] {
+[data-streamdown="inline-code"] {
   @apply bg-muted rounded-sm py-px px-1;
 }
 
-[data-streamdown='mermaid-block'] {
+[data-streamdown="mermaid-block"] {
   @apply p-0 overflow-hidden before:content-['Mermaid_Diagram'] before:absolute before:top-0.5 before:left-0 before:px-2.5 before:py-2 before:text-xs before:text-muted-foreground;
 }
 
-[data-streamdown='mermaid-block'] > div:nth-child(1) {
+[data-streamdown="mermaid-block"] > div:nth-child(1) {
   @apply px-2 py-1.5 border-b;
 }
 
-[data-streamdown='mermaid-block'] > div:nth-child(2) {
+[data-streamdown="mermaid-block"] > div:nth-child(2) {
   @apply my-0 p-2;
 }
 
-[data-streamdown='mermaid-block'] > div:nth-child(1) > div:nth-child(4) {
+[data-streamdown="mermaid-block"] > div:nth-child(1) > div:nth-child(4) {
   @apply bg-background;
 }
 
-[data-streamdown='code-block-header'] {
+[data-streamdown="code-block-header"] {
   @apply px-2 py-1.75 bg-transparent;
 }

@@ -246,10 +246,10 @@ const ChatSessionPage = () => {
 
           <div ref={messagesEndRef} />
         </div>
-        <div className="-translate-x-1/2 absolute bottom-0 left-1/2 z-10 h-10 w-full max-w-3xl bg-background" />
+        <div className="absolute bottom-0 left-1/2 z-10 h-10 w-full max-w-3xl -translate-x-1/2 bg-background" />
       </ScrollArea>
 
-      <div className="-translate-x-1/2 absolute bottom-0 left-1/2 z-20 w-full max-w-3xl p-4" id="chat-input-container">
+      <div className="absolute bottom-0 left-1/2 z-20 w-full max-w-3xl -translate-x-1/2 p-4" id="chat-input-container">
         <ChatInput
           onSend={handleSendMessage}
           isPending={isSendingMessage}

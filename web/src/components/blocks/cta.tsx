@@ -82,7 +82,7 @@ export const CTA = () => {
 
         <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center text-center">
           <div className="relative">
-            <div className="-z-10 absolute inset-0 size-24 rounded-full bg-accent/70 blur-3xl" />
+            <div className="absolute inset-0 -z-10 size-24 rounded-full bg-accent/70 blur-3xl" />
             <motion.img
               initial={{ opacity: 0 }}
               whileInView={{ opacity: 1 }}
