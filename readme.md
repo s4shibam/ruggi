@@ -1,6 +1,6 @@
 <p align="center">
     <a href="https://ruggi.s4shibam.com">
-        <img alt="Ruggi" width="100" src="./apps/web/public/icon.ico">
+        <img alt="Ruggi" width="100" src="./web/public/icon.ico">
     </a>
 </p>
 
@@ -19,7 +19,7 @@
 
 ## ⚡ Introduction
 
-Ruggi is an intelligent chat application that reads your documents so you don't have to. Simply upload your files, and chat with an AI assistant that understands and references your content. Whether you need quick answers, document summaries, or insights across multiple files, Ruggi makes it easy to extract information from your documents through natural conversation, all while keeping your data private and secure.
+Ruggi is an AI-powered chat app that reads your documents so you don’t have to. Upload files, then chat naturally to get instant answers, summaries, and insights from their contents. Ruggi securely processes your data and helps you extract important information quickly and easily from your own documents.
 
 ## ✨ Features
 
@@ -73,6 +73,8 @@ Ruggi is an intelligent chat application that reads your documents so you don't 
 ![Screenshot 2](./.readme/2.webp)
 ![Screenshot 3](./.readme/3.webp)
 ![Screenshot 4](./.readme/4.webp)
+![Screenshot 5](./.readme/5.webp)
+![Screenshot 6](./.readme/6.webp)
 
 ## 👋🏻 Contact
 
