@@ -2,15 +2,14 @@ from __future__ import annotations
 
 import logging
 from html.parser import HTMLParser
-from io import BytesIO
 
+import fitz
 from django.db import transaction
 from django.utils import timezone
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pydantic import BaseModel, Field
-from pypdf import PdfReader
 
 from common.constants import (
     DEFAULT_CHUNK_OVERLAP,
@@ -105,12 +104,16 @@ class DocumentProcessor:
         doc_type = (document.document_type or "").lower()
 
         if doc_type == DOC_TYPE_PDF:
-            reader = PdfReader(BytesIO(file_bytes))
+            pdf_document = fitz.open(stream=file_bytes, filetype="pdf")
             text_parts: list[str] = []
-            for page in reader.pages:
-                extracted = page.extract_text() or ""
-                if extracted:
-                    text_parts.append(extracted)
+            try:
+                for page_num in range(pdf_document.page_count):
+                    page = pdf_document[page_num]
+                    extracted = page.get_text() or ""
+                    if extracted:
+                        text_parts.append(extracted)
+            finally:
+                pdf_document.close()
             text = "\n".join(text_parts)
         elif doc_type in (DOC_TYPE_TXT, DOC_TYPE_MD):
             text = file_bytes.decode("utf-8", errors="ignore")
