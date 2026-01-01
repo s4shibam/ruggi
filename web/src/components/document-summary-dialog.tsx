@@ -19,11 +19,11 @@ export const DocumentSummaryDialog = ({ document, open, onOpenChange }: Document
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="size-5" />
-            <span className="line-clamp-1">{document.title}</span>
-          </DialogTitle>
-          <DialogDescription>AI-generated document analysis</DialogDescription>
+          <DialogTitle className="line-clamp-2 flex items-center gap-2">{document.title}</DialogTitle>
+          <DialogDescription className="flex items-center gap-2">
+            <Sparkles className="size-4" />
+            <span>AI-generated document analysis</span>
+          </DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="max-h-[70vh] pr-4">
