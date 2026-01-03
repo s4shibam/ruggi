@@ -71,7 +71,6 @@ dev-api: ## Start only api dev server
 
 # Building
 
-
 build: ## Build all apps
 	@echo "$(GREEN)🔨 Building all apps...$(RESET)"
 	@$(MAKE) build-web
@@ -154,7 +153,7 @@ seed: ## Seed database with initial data
 
 celery: ## Start Celery worker and beat
 	@echo "$(GREEN)🎯 Starting Celery worker and beat...$(RESET)"
-	cd api && $(VENV) && celery -A config worker -B -l info
+	cd api && $(VENV) && celery -A config worker -B -l info --pool=solo
 
 celery-flower: ## Start Celery Flower monitoring
 	@echo "$(GREEN)🌸 Starting Celery Flower...$(RESET)"
