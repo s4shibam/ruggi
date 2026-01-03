@@ -84,19 +84,19 @@ EMBEDDING_MODEL_NAME = "text-embedding-3-small"
 LLM_TEMPERATURE = 0.2
 LLM_MAX_TOOL_CALLS = 10
 
-# Context Window Management - Simple approach
-MAX_CONTEXT_TOKENS = 50000  # Conservative limit for all messages
-MODEL_NAME_FOR_TOKENS = "gpt-4o"  # For token counting
+# Context Window Management
+MAX_CONTEXT_TOKENS = 50000
+MODEL_NAME_FOR_TOKENS = "gpt-4o"
 
 # Safety limits for full document retrieval
-MAX_FULL_DOCUMENT_CHARS = 200000  # ~50k tokens
-WARN_FULL_DOCUMENT_CHARS = 100000  # ~25k tokens
+MAX_FULL_DOCUMENT_CHARS = 200000
+WARN_FULL_DOCUMENT_CHARS = 100000
 
 # Embedding
 OPENAI_EMBEDDING_DIMENSION = 256
 
 # Document Summary
-SUMMARY_MAX_TOKENS = 300
+SUMMARY_MAX_TOKENS = 1000
 SUMMARY_TEMPERATURE = 0.3
 SUMMARY_CHUNKS_TO_USE = 10  # Number of chunks to use for summary generation
 
