@@ -8,11 +8,7 @@ from langchain.tools import tool
 from langchain_core.embeddings import Embeddings
 from pgvector.django import CosineDistance
 
-from common.constants import (
-    DOC_STATUS_COMPLETED,
-    MAX_FULL_DOCUMENT_CHARS,
-    WARN_FULL_DOCUMENT_CHARS,
-)
+from common.constants import DOC_STATUS_COMPLETED, MAX_FULL_DOCUMENT_CHARS, WARN_FULL_DOCUMENT_CHARS
 from document.models import Document, DocumentChunk
 
 logger = logging.getLogger(__name__)
@@ -104,14 +100,16 @@ def _execute_semantic_search(
             if chunk_id_str not in combined_results:
                 combined_results[chunk_id_str] = {
                     "chunk_id": chunk_id_str,
-                    "document_id": str(chunk.document_id),
+                    "document_id": str(chunk.document.id),
                     "document_title": chunk.document.title,
                     "chunk_text": truncate_chunk_text(chunk.text),
                     "chunk_order": chunk.order,
                     "scores": [],
                 }
-            combined_results[chunk_id_str]["scores"].append(float(chunk.similarity))
-            document_ids_used.add(str(chunk.document_id))
+            combined_results[chunk_id_str]["scores"].append(
+                float(getattr(chunk, "similarity", 0.0))
+            )
+            document_ids_used.add(str(chunk.document.id))
 
     ranked_chunks: list[dict[str, Any]] = []
     for entry in combined_results.values():

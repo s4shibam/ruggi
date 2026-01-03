@@ -1,7 +1,7 @@
 import json
 import logging
 import uuid
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
@@ -32,14 +32,10 @@ from common.constants import (
     SUCCESS_UPDATED,
 )
 from document.models import Document
+from user.models import User
 
 from .context import trim_chat_history
-from .llm import (
-    LLM_MAX_TOOL_CALLS,
-    LLM_TEMPERATURE,
-    generate_title,
-    run_chat_with_tools,
-)
+from .llm import LLM_MAX_TOOL_CALLS, LLM_TEMPERATURE, generate_title, run_chat_with_tools
 from .models import ChatMessage, ChatSession
 from .prompts import build_system_message
 
@@ -191,7 +187,8 @@ def create_chat_message(request: HttpRequest) -> JsonResponse:
     except PermissionError as e:
         return JsonResponse({"message": str(e)}, status=status.HTTP_403_FORBIDDEN)
     except Exception as e:
-        logger.exception("Failed to create chat session/message for user %s", request.user.id)
+        user_id = cast(User, request.user).id if request.user.is_authenticated else "unknown"
+        logger.exception("Failed to create chat session/message for user %s", user_id)
         return JsonResponse(
             {"message": f"An error occurred: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,

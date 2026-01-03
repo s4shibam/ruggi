@@ -9,7 +9,7 @@ from django.utils import timezone
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, SecretStr
 
 from common.constants import (
     DEFAULT_CHUNK_OVERLAP,
@@ -76,12 +76,12 @@ class DocumentProcessor:
         self._embeddings_model = OpenAIEmbeddings(
             model=EMBEDDING_MODEL_NAME,
             dimensions=OPENAI_EMBEDDING_DIMENSION,
-            openai_api_key=OPENAI_API_KEY,
+            api_key=SecretStr(OPENAI_API_KEY),
         )
         self._llm = ChatOpenAI(
             model=LLM_MODEL_NAME,
             temperature=SUMMARY_TEMPERATURE,
-            openai_api_key=OPENAI_API_KEY,
+            api_key=SecretStr(OPENAI_API_KEY),
         )
 
     def process(self, document: Document) -> None:
@@ -110,7 +110,7 @@ class DocumentProcessor:
                 for page_num in range(pdf_document.page_count):
                     page = pdf_document[page_num]
                     extracted = page.get_text() or ""
-                    if extracted:
+                    if extracted and isinstance(extracted, str):
                         text_parts.append(extracted)
             finally:
                 pdf_document.close()
@@ -214,7 +214,7 @@ class DocumentProcessor:
                 content=f"Analyze this document and provide title, description, and summary:\n\n{combined_text}"
             )
 
-            metadata: DocumentMetadata = structured_llm.invoke(
+            metadata: DocumentMetadata = structured_llm.invoke(  # type: ignore
                 [system_message, user_message],
                 max_tokens=SUMMARY_MAX_TOKENS,
             )

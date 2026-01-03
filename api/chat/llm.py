@@ -6,6 +6,7 @@ from typing import Any
 from langchain.agents import create_agent
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from pydantic import SecretStr
 
 from common.constants import (
     EMBEDDING_MODEL_NAME,
@@ -50,7 +51,7 @@ def get_chat_model(temperature: float = LLM_TEMPERATURE) -> ChatOpenAI:
     return ChatOpenAI(
         model=LLM_MODEL_NAME,
         temperature=temperature,
-        openai_api_key=OPENAI_API_KEY,
+        api_key=SecretStr(OPENAI_API_KEY),
     )
 
 
@@ -62,7 +63,7 @@ def get_embeddings_model() -> OpenAIEmbeddings:
     return OpenAIEmbeddings(
         model=EMBEDDING_MODEL_NAME,
         dimensions=OPENAI_EMBEDDING_DIMENSION,
-        openai_api_key=OPENAI_API_KEY,
+        api_key=SecretStr(OPENAI_API_KEY),
     )
 
 
@@ -177,7 +178,10 @@ def _extract_tool_metadata_from_messages(messages: list[BaseMessage]) -> dict[st
             try:
                 import json
 
-                content_data = json.loads(msg.content)
+                if isinstance(msg.content, str):
+                    content_data = json.loads(msg.content)
+                else:
+                    continue
                 if isinstance(content_data, dict):
                     # Extract chunk IDs
                     chunks = content_data.get("chunks", [])
@@ -246,7 +250,8 @@ def run_chat_with_tools(
     # Run agent
     try:
         result = agent_executor.invoke(
-            {"messages": langchain_messages}, config={"recursion_limit": LLM_MAX_TOOL_CALLS}
+            {"messages": langchain_messages},  # type: ignore
+            config={"recursion_limit": LLM_MAX_TOOL_CALLS},
         )
 
         # Extract all messages from the result

@@ -76,6 +76,8 @@ WSGI_APPLICATION = "config.wsgi.application"
 
 # Database configuration
 database_url = os.getenv("DATABASE_URL")
+if not database_url:
+    raise ValueError("DATABASE_URL environment variable is required")
 
 DATABASES = {
     "default": dj_database_url.parse(
