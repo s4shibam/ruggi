@@ -15,6 +15,9 @@ node_modules/
 staticfiles/
 __pycache__
 
+# Celery beat schedule file
+celerybeat-schedule
+
 # Environment files
 .env
 .env.local
