@@ -7,7 +7,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Count
-from django.http import HttpRequest, JsonResponse
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
@@ -46,6 +46,7 @@ from common.constants import (
     SUPPORTED_DOCUMENT_TYPES,
 )
 from common.s3 import delete_file, generate_presigned_upload_url, get_storage_url
+from common.types import AuthenticatedHttpRequest
 
 from .models import Document
 
@@ -92,7 +93,7 @@ def _serialize_document(document: Document, include_chunks: bool = False) -> dic
 
 @login_required
 @require_GET
-def list_documents(request: HttpRequest) -> JsonResponse:
+def list_documents(request: AuthenticatedHttpRequest) -> JsonResponse:
     page_number: int = int(request.GET.get("page", DEFAULT_PAGE_NUMBER))
     page_size: int = min(int(request.GET.get("page_size", DEFAULT_PAGE_SIZE)), MAX_PAGE_SIZE)
 
@@ -140,7 +141,7 @@ def list_documents(request: HttpRequest) -> JsonResponse:
 @login_required
 @csrf_exempt
 @require_POST
-def generate_document_upload_url(request: HttpRequest) -> JsonResponse:
+def generate_document_upload_url(request: AuthenticatedHttpRequest) -> JsonResponse:
     try:
         data: dict[str, Any] = json.loads(request.body)
     except json.JSONDecodeError:
@@ -231,7 +232,7 @@ def generate_document_upload_url(request: HttpRequest) -> JsonResponse:
 @login_required
 @csrf_exempt
 @require_POST
-def complete_document_upload(request: HttpRequest) -> JsonResponse:
+def complete_document_upload(request: AuthenticatedHttpRequest) -> JsonResponse:
     try:
         data: dict[str, Any] = json.loads(request.body)
     except json.JSONDecodeError:
@@ -331,7 +332,7 @@ def complete_document_upload(request: HttpRequest) -> JsonResponse:
 
 @login_required
 @require_GET
-def get_document_detail(request: HttpRequest, document_id: uuid.UUID) -> JsonResponse:
+def get_document_detail(request: AuthenticatedHttpRequest, document_id: uuid.UUID) -> JsonResponse:
     try:
         document_uuid: uuid.UUID = uuid.UUID(str(document_id))
     except ValueError:
@@ -353,7 +354,7 @@ def get_document_detail(request: HttpRequest, document_id: uuid.UUID) -> JsonRes
 @login_required
 @csrf_exempt
 @require_http_methods(["PUT", "PATCH"])
-def update_document(request: HttpRequest, document_id: uuid.UUID) -> JsonResponse:
+def update_document(request: AuthenticatedHttpRequest, document_id: uuid.UUID) -> JsonResponse:
     try:
         document_uuid: uuid.UUID = uuid.UUID(str(document_id))
     except ValueError:
@@ -405,7 +406,7 @@ def update_document(request: HttpRequest, document_id: uuid.UUID) -> JsonRespons
 @login_required
 @csrf_exempt
 @require_http_methods(["DELETE"])
-def delete_document(request: HttpRequest, document_id: uuid.UUID) -> JsonResponse:
+def delete_document(request: AuthenticatedHttpRequest, document_id: uuid.UUID) -> JsonResponse:
     try:
         document_uuid: uuid.UUID = uuid.UUID(str(document_id))
     except ValueError:

@@ -1,13 +1,13 @@
 import json
 import logging
 import uuid
-from typing import Any, Optional, cast
+from typing import Any, Optional
 
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Count
-from django.http import HttpRequest, JsonResponse
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
@@ -31,8 +31,8 @@ from common.constants import (
     SUCCESS_RETRIEVED,
     SUCCESS_UPDATED,
 )
+from common.types import AuthenticatedHttpRequest
 from document.models import Document
-from user.models import User
 
 from .context import trim_chat_history
 from .llm import LLM_MAX_TOOL_CALLS, LLM_TEMPERATURE, generate_title, run_chat_with_tools
@@ -159,7 +159,7 @@ def _get_user_personalization(user) -> dict[str, str]:
 @login_required
 @csrf_exempt
 @require_POST
-def create_chat_message(request: HttpRequest) -> JsonResponse:
+def create_chat_message(request: AuthenticatedHttpRequest) -> JsonResponse:
     try:
         data: dict[str, Any] = json.loads(request.body)
     except json.JSONDecodeError:
@@ -187,7 +187,7 @@ def create_chat_message(request: HttpRequest) -> JsonResponse:
     except PermissionError as e:
         return JsonResponse({"message": str(e)}, status=status.HTTP_403_FORBIDDEN)
     except Exception as e:
-        user_id = cast(User, request.user).id if request.user.is_authenticated else "unknown"
+        user_id = request.user.id if request.user.is_authenticated else "unknown"
         logger.exception("Failed to create chat session/message for user %s", user_id)
         return JsonResponse(
             {"message": f"An error occurred: {str(e)}"},
@@ -244,6 +244,7 @@ def create_chat_message(request: HttpRequest) -> JsonResponse:
 
             session.last_message_at = assistant_message.created_at
             session.save(update_fields=["last_message_at", "updated_at"])
+
     except Exception as e:
         logger.exception("Failed to persist assistant message for session %s", session.id)
         return JsonResponse(
@@ -288,7 +289,7 @@ def create_chat_message(request: HttpRequest) -> JsonResponse:
 
 @login_required
 @require_GET
-def get_all_chats(request: HttpRequest) -> JsonResponse:
+def get_all_chats(request: AuthenticatedHttpRequest) -> JsonResponse:
     page_number: int = int(request.GET.get("page", DEFAULT_PAGE_NUMBER))
     page_size: int = min(int(request.GET.get("page_size", DEFAULT_PAGE_SIZE)), MAX_PAGE_SIZE)
     search_query: Optional[str] = request.GET.get("search")
@@ -332,7 +333,7 @@ def get_all_chats(request: HttpRequest) -> JsonResponse:
 
 @login_required
 @require_GET
-def get_chat_detail(request: HttpRequest, chat_id: uuid.UUID) -> JsonResponse:
+def get_chat_detail(request: AuthenticatedHttpRequest, chat_id: uuid.UUID) -> JsonResponse:
     try:
         session_uuid: uuid.UUID = uuid.UUID(str(chat_id))
     except ValueError:
@@ -358,7 +359,7 @@ def get_chat_detail(request: HttpRequest, chat_id: uuid.UUID) -> JsonResponse:
 @login_required
 @csrf_exempt
 @require_http_methods(["PUT", "PATCH"])
-def update_chat(request: HttpRequest, chat_id: uuid.UUID) -> JsonResponse:
+def update_chat(request: AuthenticatedHttpRequest, chat_id: uuid.UUID) -> JsonResponse:
     try:
         session_uuid: uuid.UUID = uuid.UUID(str(chat_id))
     except ValueError:
@@ -404,7 +405,7 @@ def update_chat(request: HttpRequest, chat_id: uuid.UUID) -> JsonResponse:
 @login_required
 @csrf_exempt
 @require_http_methods(["DELETE"])
-def delete_chat(request: HttpRequest, chat_id: uuid.UUID) -> JsonResponse:
+def delete_chat(request: AuthenticatedHttpRequest, chat_id: uuid.UUID) -> JsonResponse:
     try:
         session_uuid: uuid.UUID = uuid.UUID(str(chat_id))
     except ValueError:
@@ -426,7 +427,7 @@ def delete_chat(request: HttpRequest, chat_id: uuid.UUID) -> JsonResponse:
 @login_required
 @csrf_exempt
 @require_POST
-def generate_chat_title(request: HttpRequest, chat_id: uuid.UUID) -> JsonResponse:
+def generate_chat_title(request: AuthenticatedHttpRequest, chat_id: uuid.UUID) -> JsonResponse:
     try:
         session_uuid: uuid.UUID = uuid.UUID(str(chat_id))
     except ValueError:

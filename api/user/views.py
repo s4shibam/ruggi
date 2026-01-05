@@ -1,8 +1,8 @@
 import json
-from typing import Any, Optional, cast
+from typing import Any, Optional
 
 from django.contrib.auth.decorators import login_required
-from django.http import HttpRequest, JsonResponse
+from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_http_methods
 from rest_framework import status
@@ -19,6 +19,7 @@ from common.constants import (
     SUCCESS_RETRIEVED,
     SUCCESS_UPDATED,
 )
+from common.types import AuthenticatedHttpRequest
 
 from .models import User, UserPersonalization
 
@@ -49,14 +50,14 @@ def _serialize_user(user: User) -> dict[str, Any]:
 
 @require_GET
 @ensure_csrf_cookie
-def get_user_profile(request: HttpRequest) -> JsonResponse:
+def get_user_profile(request: AuthenticatedHttpRequest) -> JsonResponse:
     if not request.user.is_authenticated:
         return JsonResponse(
             {"message": "Not authenticated", "data": None},
             status=status.HTTP_401_UNAUTHORIZED,
         )
 
-    user: User = cast(User, request.user)
+    user: User = request.user
 
     return JsonResponse(
         {
@@ -70,8 +71,8 @@ def get_user_profile(request: HttpRequest) -> JsonResponse:
 @login_required
 @csrf_exempt
 @require_http_methods(["PUT", "PATCH"])
-def update_user_profile(request: HttpRequest) -> JsonResponse:
-    user: User = cast(User, request.user)
+def update_user_profile(request: AuthenticatedHttpRequest) -> JsonResponse:
+    user: User = request.user
 
     try:
         data: dict[str, Any] = json.loads(request.body)
@@ -148,8 +149,8 @@ def update_user_profile(request: HttpRequest) -> JsonResponse:
 @login_required
 @csrf_exempt
 @require_http_methods(["DELETE"])
-def delete_user_profile(request: HttpRequest) -> JsonResponse:
-    user: User = cast(User, request.user)
+def delete_user_profile(request: AuthenticatedHttpRequest) -> JsonResponse:
+    user: User = request.user
     user.delete()
 
     return JsonResponse(
