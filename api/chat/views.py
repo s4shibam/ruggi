@@ -24,6 +24,7 @@ from common.constants import (
     ERROR_FIELD_TOO_LONG,
     ERROR_INVALID_JSON,
     ERROR_INVALID_UUID,
+    ERROR_LIMIT_EXCEEDED_CHATS,
     ERROR_NOT_AUTHORIZED,
     MAX_PAGE_SIZE,
     MAX_TITLE_LENGTH,
@@ -33,6 +34,9 @@ from common.constants import (
 )
 from common.types import AuthenticatedHttpRequest
 from document.models import Document
+from plan.helpers import can_add_chat, deduct_chat
+from plan.models import Plan
+from plan.views import check_and_reset_if_needed
 
 from .context import trim_chat_history
 from .llm import LLM_MAX_TOOL_CALLS, LLM_TEMPERATURE, generate_title, run_chat_with_tools
@@ -175,6 +179,72 @@ def create_chat_message(request: AuthenticatedHttpRequest) -> JsonResponse:
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+    # Check user plan limits
+    try:
+        user_plan = request.user.plan
+        # Check and reset limits if needed (for Pro plans)
+        check_and_reset_if_needed(user_plan)
+
+        if not can_add_chat(user_plan):
+            # User has exceeded chat limit - store this info and return readable message
+            try:
+                with transaction.atomic():
+                    session = _get_or_create_session(session_id, request.user)
+                    attached_documents = _validate_and_set_attached_documents(
+                        session=session, document_ids=document_ids, user=request.user
+                    )
+                    ChatMessage.objects.create(
+                        session=session, role=CHAT_ROLE_USER, content=content
+                    )
+
+                    # Store limit exceeded message in DB
+                    limit_message = ERROR_LIMIT_EXCEEDED_CHATS
+                    assistant_message = ChatMessage.objects.create(
+                        session=session,
+                        role=CHAT_ROLE_ASSISTANT,
+                        content=limit_message,
+                        metadata={"limit_exceeded": True},
+                    )
+
+                    session.last_message_at = assistant_message.created_at
+                    session.save(update_fields=["last_message_at", "updated_at"])
+
+                    session_attached_documents = [
+                        {
+                            "id": str(doc.id),
+                            "title": doc.title,
+                            "description": doc.description,
+                        }
+                        for doc in attached_documents
+                    ]
+
+                    return JsonResponse(
+                        {
+                            "message": "Chat limit exceeded",
+                            "data": {
+                                "session_id": str(session.id),
+                                "assistant_message_content": limit_message,
+                                "attached_documents": session_attached_documents,
+                                "limit_exceeded": True,
+                            },
+                        },
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+            except Exception:
+                logger.exception(
+                    "Failed to store limit exceeded message for user %s", request.user.id
+                )
+                return JsonResponse(
+                    {"message": ERROR_LIMIT_EXCEEDED_CHATS},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+    except Plan.DoesNotExist:
+        logger.error(f"No plan found for user {request.user.id}")
+        return JsonResponse(
+            {"message": "No plan found. Please contact support."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
     try:
         with transaction.atomic():
             session = _get_or_create_session(session_id, request.user)
@@ -245,6 +315,12 @@ def create_chat_message(request: AuthenticatedHttpRequest) -> JsonResponse:
             session.last_message_at = assistant_message.created_at
             session.save(update_fields=["last_message_at", "updated_at"])
 
+            # Deduct from user's plan after successful chat completion
+            try:
+                user_plan = request.user.plan
+                deduct_chat(user_plan)
+            except Exception as plan_error:
+                logger.error(f"Failed to deduct chat from plan: {plan_error}", exc_info=True)
     except Exception as e:
         logger.exception("Failed to persist assistant message for session %s", session.id)
         return JsonResponse(

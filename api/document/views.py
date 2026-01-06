@@ -34,6 +34,7 @@ from common.constants import (
     ERROR_FILE_TYPE_NOT_SUPPORTED,
     ERROR_INVALID_JSON,
     ERROR_INVALID_UUID,
+    ERROR_LIMIT_EXCEEDED_DOCUMENTS,
     ERROR_PROCESSING_FAILED,
     MAX_FILE_SIZE_BYTES,
     MAX_FILE_SIZE_MB,
@@ -47,6 +48,9 @@ from common.constants import (
 )
 from common.s3 import delete_file, generate_presigned_upload_url, get_storage_url
 from common.types import AuthenticatedHttpRequest
+from plan.helpers import can_add_document, deduct_document
+from plan.models import Plan
+from plan.views import check_and_reset_if_needed
 
 from .models import Document
 
@@ -292,6 +296,36 @@ def complete_document_upload(request: AuthenticatedHttpRequest) -> JsonResponse:
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+    # Check user plan limits
+    try:
+        user_plan = request.user.plan
+        # Check and reset limits if needed (for Pro plans)
+        check_and_reset_if_needed(user_plan)
+
+        if not can_add_document(user_plan):
+            # User has no remaining document limit - delete the uploaded file from S3
+            logger.info(
+                f"User {request.user.id} exceeded document limit. Deleting file from S3: {storage_url}"
+            )
+            try:
+                delete_file(storage_url)
+            except Exception as delete_error:
+                logger.error(
+                    f"Failed to delete file from S3 after limit exceeded: {delete_error}",
+                    exc_info=True,
+                )
+
+            return JsonResponse(
+                {"message": ERROR_LIMIT_EXCEEDED_DOCUMENTS},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+    except Plan.DoesNotExist:
+        logger.error(f"No plan found for user {request.user.id}")
+        return JsonResponse(
+            {"message": "No plan found. Please contact support."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
     document: Optional[Document] = None
 
     try:
@@ -306,6 +340,9 @@ def complete_document_upload(request: AuthenticatedHttpRequest) -> JsonResponse:
                 size_kb=file_size // 1024,
                 status=DOC_STATUS_QUEUED,
             )
+
+            # Deduct from user's plan
+            deduct_document(user_plan)
 
             return JsonResponse(
                 {
