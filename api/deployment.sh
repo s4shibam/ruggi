@@ -15,13 +15,13 @@ REDIS_PID=$!
 echo "Running database migrations..."
 python manage.py migrate --noinput
 
-echo "Starting Celery worker..."
-celery -A config worker -l info &
-WORKER_PID=$!
-
-echo "Starting Celery beat..."
-celery -A config beat -l info &
-BEAT_PID=$!
+echo "Starting Celery (worker + beat, low memory)..."
+celery -A config worker \
+  -l info \
+  --concurrency=1 \
+  --pool=solo \
+  --beat &
+CELERY_PID=$!
 
 echo "Starting API on port ${PORT}..."
 uvicorn config.asgi:application --host 0.0.0.0 --port "$PORT" &
@@ -31,6 +31,6 @@ wait -n "$API_PID"
 EXIT_CODE=$?
 
 echo "API exited, shutting down..."
-kill -TERM "$WORKER_PID" "$BEAT_PID" "$REDIS_PID" 2>/dev/null || true
+kill -TERM "$CELERY_PID" "$REDIS_PID" 2>/dev/null || true
 wait || true
 exit "$EXIT_CODE"
