@@ -1,5 +1,5 @@
 import { createFileRoute, Link, Outlet, redirect, useMatchRoute, useNavigate, useParams } from '@tanstack/react-router'
-import { Clock, FolderOpen, type LucideIcon, Menu, PanelLeft, Plus, X } from 'lucide-react'
+import { ChartNoAxesColumn, Clock, FolderOpen, type LucideIcon, Menu, PanelLeft, Plus, X } from 'lucide-react'
 import { useState } from 'react'
 
 import { Branding } from '@/components/blocks/branding'
@@ -82,6 +82,12 @@ const LabLayout = () => {
               to="/lab/documents"
               icon={FolderOpen}
               label="Documents"
+              isOpen={isSidebarOpen || isMobileMenuOpen}
+            />
+            <SidebarButton
+              to="/lab/usage"
+              icon={ChartNoAxesColumn}
+              label="Usage"
               isOpen={isSidebarOpen || isMobileMenuOpen}
             />
           </div>

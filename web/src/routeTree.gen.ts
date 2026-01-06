@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LabRouteImport } from './routes/lab'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as LabIndexRouteImport } from './routes/lab/index'
+import { Route as LabUsageRouteImport } from './routes/lab/usage'
 import { Route as LabProfileRouteImport } from './routes/lab/profile'
 import { Route as LabHistoryRouteImport } from './routes/lab/history'
 import { Route as LabDocumentsRouteImport } from './routes/lab/documents'
@@ -34,6 +35,11 @@ const IndexRoute = IndexRouteImport.update({
 const LabIndexRoute = LabIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => LabRoute,
+} as any)
+const LabUsageRoute = LabUsageRouteImport.update({
+  id: '/usage',
+  path: '/usage',
   getParentRoute: () => LabRoute,
 } as any)
 const LabProfileRoute = LabProfileRouteImport.update({
@@ -85,6 +91,7 @@ export interface FileRoutesByFullPath {
   '/lab/documents': typeof LabDocumentsRoute
   '/lab/history': typeof LabHistoryRoute
   '/lab/profile': typeof LabProfileRoute
+  '/lab/usage': typeof LabUsageRoute
   '/lab/': typeof LabIndexRoute
   '/lab/chat/$chatSessionId': typeof LabChatChatSessionIdRoute
   '/lab/chat/new': typeof LabChatNewRoute
@@ -97,6 +104,7 @@ export interface FileRoutesByTo {
   '/lab/documents': typeof LabDocumentsRoute
   '/lab/history': typeof LabHistoryRoute
   '/lab/profile': typeof LabProfileRoute
+  '/lab/usage': typeof LabUsageRoute
   '/lab': typeof LabIndexRoute
   '/lab/chat/$chatSessionId': typeof LabChatChatSessionIdRoute
   '/lab/chat/new': typeof LabChatNewRoute
@@ -111,6 +119,7 @@ export interface FileRoutesById {
   '/lab/documents': typeof LabDocumentsRoute
   '/lab/history': typeof LabHistoryRoute
   '/lab/profile': typeof LabProfileRoute
+  '/lab/usage': typeof LabUsageRoute
   '/lab/': typeof LabIndexRoute
   '/lab/chat/$chatSessionId': typeof LabChatChatSessionIdRoute
   '/lab/chat/new': typeof LabChatNewRoute
@@ -126,6 +135,7 @@ export interface FileRouteTypes {
     | '/lab/documents'
     | '/lab/history'
     | '/lab/profile'
+    | '/lab/usage'
     | '/lab/'
     | '/lab/chat/$chatSessionId'
     | '/lab/chat/new'
@@ -138,6 +148,7 @@ export interface FileRouteTypes {
     | '/lab/documents'
     | '/lab/history'
     | '/lab/profile'
+    | '/lab/usage'
     | '/lab'
     | '/lab/chat/$chatSessionId'
     | '/lab/chat/new'
@@ -151,6 +162,7 @@ export interface FileRouteTypes {
     | '/lab/documents'
     | '/lab/history'
     | '/lab/profile'
+    | '/lab/usage'
     | '/lab/'
     | '/lab/chat/$chatSessionId'
     | '/lab/chat/new'
@@ -185,6 +197,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/lab/'
       preLoaderRoute: typeof LabIndexRouteImport
+      parentRoute: typeof LabRoute
+    }
+    '/lab/usage': {
+      id: '/lab/usage'
+      path: '/usage'
+      fullPath: '/lab/usage'
+      preLoaderRoute: typeof LabUsageRouteImport
       parentRoute: typeof LabRoute
     }
     '/lab/profile': {
@@ -250,6 +269,7 @@ interface LabRouteChildren {
   LabDocumentsRoute: typeof LabDocumentsRoute
   LabHistoryRoute: typeof LabHistoryRoute
   LabProfileRoute: typeof LabProfileRoute
+  LabUsageRoute: typeof LabUsageRoute
   LabIndexRoute: typeof LabIndexRoute
   LabChatChatSessionIdRoute: typeof LabChatChatSessionIdRoute
   LabChatNewRoute: typeof LabChatNewRoute
@@ -260,6 +280,7 @@ const LabRouteChildren: LabRouteChildren = {
   LabDocumentsRoute: LabDocumentsRoute,
   LabHistoryRoute: LabHistoryRoute,
   LabProfileRoute: LabProfileRoute,
+  LabUsageRoute: LabUsageRoute,
   LabIndexRoute: LabIndexRoute,
   LabChatChatSessionIdRoute: LabChatChatSessionIdRoute,
   LabChatNewRoute: LabChatNewRoute,

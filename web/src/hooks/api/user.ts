@@ -55,3 +55,35 @@ export const useDeleteUserAccount = (options?: TMutationOpts<TDeleteUserAccountA
     ...options
   })
 }
+
+export type TUsageData = {
+  plan_type: 'free' | 'pro'
+  documents: {
+    total: number
+    used: number
+    remaining: number
+    percentage_used: number
+  }
+  chats: {
+    total: number
+    used: number
+    remaining: number
+    percentage_used: number
+  }
+  last_reset_at: string | null
+  is_monthly_reset: boolean
+}
+
+export type TGetUsageArgs = undefined
+
+export type TGetUsageResult = TUsageData
+
+export const useGetUsage = (args: TGetUsageArgs, options?: TQueryOpts<TGetUsageResult>) => {
+  return useQuery({
+    queryKey: ['useGetUsage', args],
+    queryFn: () => {
+      return api.get('/plan/usage/') as TApiPromise<TGetUsageResult>
+    },
+    ...options
+  })
+}

@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "chat",
     "common",
     "status",
+    "plan",
 ]
 
 MIDDLEWARE = [

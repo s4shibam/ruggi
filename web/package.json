@@ -5,8 +5,8 @@
     "dev": "vite --port 3000 --host",
     "build": "tsc -b && vite build",
     "start": "vite preview --port 3000 --host",
-    "check": "biome check .",
-    "fix": "biome check --write .",
+    "check": "biome check src",
+    "fix": "biome check --write src",
     "clean": "rm -rf .dist .tanstack tsconfig.tsbuildinfo node_modules",
     "preview": "vite preview"
   },

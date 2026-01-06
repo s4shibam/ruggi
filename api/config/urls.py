@@ -16,6 +16,7 @@ urlpatterns = [
     path("user/", include("user.urls")),
     path("chat/", include("chat.urls")),
     path("document/", include("document.urls")),
+    path("plan/", include("plan.urls")),
 ]
 
 # Serve static files in development

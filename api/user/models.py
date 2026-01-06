@@ -1,4 +1,5 @@
 import uuid
+from typing import TYPE_CHECKING
 
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from django.db import models
@@ -11,6 +12,9 @@ from common.constants import (
     MAX_OCCUPATION_LENGTH,
     MAX_STYLE_PREFERENCES_LENGTH,
 )
+
+if TYPE_CHECKING:
+    from plan.models import Plan
 
 
 class UserManager(BaseUserManager):
@@ -38,6 +42,7 @@ class User(AbstractBaseUser):
     is_active = models.BooleanField(default=True)
 
     personalization: "UserPersonalization"
+    plan: "Plan"
 
     objects = UserManager()
 

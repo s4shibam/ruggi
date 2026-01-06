@@ -135,3 +135,32 @@ SUCCESS_CREATED = "{} created successfully"
 SUCCESS_UPDATED = "{} updated successfully"
 SUCCESS_DELETED = "{} deleted successfully"
 SUCCESS_UPLOADED_AND_PROCESSED = "{} uploaded successfully and queued for processing"
+
+# Plan and Usage
+ERROR_LIMIT_EXCEEDED_DOCUMENTS = (
+    "You've reached your document upload limit. Upgrade to Pro for more uploads."
+)
+ERROR_LIMIT_EXCEEDED_CHATS = (
+    "You've reached your chat message limit. Upgrade to Pro to continue chatting."
+)
+
+# Plan Types
+PLAN_TYPE_FREE = "free"
+PLAN_TYPE_PRO = "pro"
+
+PLAN_TYPE_CHOICES = [
+    (PLAN_TYPE_FREE, "Free"),
+    (PLAN_TYPE_PRO, "Pro"),
+]
+
+# Plan Limits (as per pricing page)
+PLAN_LIMITS = {
+    PLAN_TYPE_FREE: {
+        "documents": 10,  # Lifetime
+        "chats": 50,  # Lifetime
+    },
+    PLAN_TYPE_PRO: {
+        "documents": 75,  # Monthly
+        "chats": 750,  # Monthly
+    },
+}

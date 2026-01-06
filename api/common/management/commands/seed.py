@@ -20,8 +20,11 @@ from common.constants import (
     DOC_TYPE_PDF,
     DOC_TYPE_TXT,
     OPENAI_EMBEDDING_DIMENSION,
+    PLAN_LIMITS,
+    PLAN_TYPE_FREE,
 )
 from document.models import Document, DocumentChunk
+from plan.models import Plan
 from user.models import User, UserPersonalization
 
 
@@ -71,6 +74,15 @@ class Command(BaseCommand):
             },
         )
 
+        Plan.objects.get_or_create(
+            user=user,
+            defaults={
+                "plan_type": PLAN_TYPE_FREE,
+                "remaining_documents": PLAN_LIMITS[PLAN_TYPE_FREE]["documents"],
+                "remaining_chats": PLAN_LIMITS[PLAN_TYPE_FREE]["chats"],
+            },
+        )
+
         return user
 
     def _clean_all_data(self):
@@ -80,6 +92,7 @@ class Command(BaseCommand):
         ChatSession.objects.all().delete()
         DocumentChunk.objects.all().delete()
         Document.objects.all().delete()
+        Plan.objects.all().delete()
         UserPersonalization.objects.all().delete()
         User.objects.all().delete()
 

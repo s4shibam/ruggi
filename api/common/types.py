@@ -14,4 +14,3 @@ class AuthenticatedHttpRequest(HttpRequest):
     """
 
     user: User
-
