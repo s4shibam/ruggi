@@ -1,6 +1,8 @@
+import { Info } from 'lucide-react'
 import { motion, useInView } from 'motion/react'
 import { useRef } from 'react'
 
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { env } from '@/constants/env'
 import { useGetStatus } from '@/hooks/api/status'
 import { cn } from '@/lib/utils'
@@ -71,6 +73,28 @@ export const Footer = () => {
             className={cn('size-2 rounded-full', config.dot)}
           />
           <span className={cn('whitespace-nowrap font-medium text-xs', config.text)}>{config.label}</span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  className={cn(
+                    'flex items-center justify-center transition-colors hover:opacity-80',
+                    config.text
+                  )}
+                  aria-label="Server status information"
+                >
+                  <Info className="size-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent
+                side="top"
+                className="max-w-[280px] text-center"
+                sideOffset={5}
+              >
+                <p className="text-xs leading-relaxed">
+                  Hosted on Render's free tier. Initial requests may experience a brief warm-up period of around 60 seconds as the server spins up from idle.
+                </p>
+              </TooltipContent>
+            </Tooltip>
         </motion.div>
       </motion.div>
     </section>
