@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  backend:
+    name: Backend Checks
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: Install dependencies
+        working-directory: ./api
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Run Ruff linting
+        working-directory: ./api
+        run: ruff check .
+      
+      - name: Run Pyright type checking
+        working-directory: ./api
+        run: pyright .
+      
+      - name: Check Django migrations
+        working-directory: ./api
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings
+          SECRET_KEY: ci-test-secret-key
+          DATABASE_URL: sqlite:///db.sqlite3
+          ALLOWED_HOSTS: localhost,127.0.0.1
+        run: |
+          python manage.py makemigrations --check --dry-run --no-input
+      
+      - name: Run Django system checks
+        working-directory: ./api
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings
+          SECRET_KEY: ci-test-secret-key
+          DATABASE_URL: sqlite:///db.sqlite3
+          ALLOWED_HOSTS: localhost,127.0.0.1
+        run: |
+          python manage.py check
+
+  frontend:
+    name: Frontend Checks
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install dependencies
+        working-directory: ./web
+        run: npm install
+      
+      - name: Run Biome checks
+        working-directory: ./web
+        run: npm run check
+      
+      - name: Build application
+        working-directory: ./web
+        run: npm run build
+
+  # Status Check - All jobs must pass
+  ci-success:
+    name: CI Success
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    if: always()
+    
+    steps:
+      - name: Check all jobs status
+        run: |
+          if [[ "${{ needs.backend.result }}" != "success" ]] || \
+             [[ "${{ needs.frontend.result }}" != "success" ]]; then
+            echo "❌ One or more CI jobs failed"
+            exit 1
+          fi
+          echo "✅ All CI checks passed!"
+
