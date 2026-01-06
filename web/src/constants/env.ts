@@ -5,7 +5,7 @@ export type TEnv = {
 }
 
 export const env = {
-  nodeEnv: import.meta.env.VITE_NODE_ENV || 'development',
-  apiUrl: import.meta.env.VITE_API_URL || 'http://localhost:8000',
+  nodeEnv: import.meta.env.NODE_ENV || 'development',
+  apiUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
   appSlug: import.meta.env.VITE_APP_SLUG || 'NA'
 }
