@@ -21,4 +21,3 @@ def create_user_plan(sender, instance, created, **kwargs):
                 "remaining_chats": PLAN_LIMITS[PLAN_TYPE_FREE]["chats"],
             },
         )
-

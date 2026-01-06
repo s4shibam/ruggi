@@ -7,4 +7,3 @@ class PlanConfig(AppConfig):
 
     def ready(self):
         import plan.signals  # noqa: F401
-
