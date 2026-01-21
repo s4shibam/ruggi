@@ -65,6 +65,7 @@
     "mypy",
     "ngrok",
     "noinput",
+    "opengraph",
     "pgvector",
     "presign",
     "psycopg",
