@@ -91,10 +91,10 @@
 
 @layer base {
   * {
-    @apply border-border antialiased overscroll-none;
+    @apply border-border antialiased;
   }
   html {
-    @apply scroll-smooth;
+    @apply scroll-smooth overscroll-none;
   }
   body {
     @apply text-foreground overflow-y-scroll bg-background font-lexend;
