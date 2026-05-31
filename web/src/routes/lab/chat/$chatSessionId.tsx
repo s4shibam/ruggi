@@ -20,18 +20,30 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DOCUMENT_STATUS } from '@/constants/common'
-import {
-  useCreateChatMessage,
-  useDeleteChatSession,
-  useGenerateChatTitle,
-  useGetChatSession,
-  useUpdateChatSession
-} from '@/hooks/api/chat'
+import { useDeleteChatSession, useGenerateChatTitle, useGetChatSession, useUpdateChatSession } from '@/hooks/api/chat'
 import { useGetAllDocuments } from '@/hooks/api/document'
+import { useChatSse } from '@/hooks/custom/use-chat-sse'
 import { invalidateQueries } from '@/lib/tanstack-query'
 import { cn } from '@/lib/utils'
 import { useChatRedirection } from '@/providers/chat-redirection-provider'
+import type { TChatSseCompleteData } from '@/types/chat'
 import type { TChatMessage, TDocument } from '@/types/models'
+
+const createTempMessage = ({
+  sessionId,
+  role,
+  content = ''
+}: {
+  sessionId: string
+  role: TChatMessage['role']
+  content?: string
+}): TChatMessage => ({
+  id: `temp-${role}-${crypto.randomUUID()}`,
+  session_id: sessionId,
+  role,
+  content,
+  created_at: new Date().toISOString()
+})
 
 const ChatSessionPage = () => {
   const { chatSessionId } = Route.useParams()
@@ -45,6 +57,7 @@ const ChatSessionPage = () => {
   const [messages, setMessages] = useState<TChatMessage[]>([])
   const [wasRedirectRender, setWasRedirectRender] = useState(false)
   const [isSendingMessage, setIsSendingMessage] = useState(false)
+  const [streamStatusMessage, setStreamStatusMessage] = useState<string | null>(null)
   const [sessionDocuments, setSessionDocuments] = useState<Pick<TDocument, 'id' | 'title'>[]>([])
 
   const { data: sessionData, isLoading: isLoadingSession } = useGetChatSession({ chatSessionId })
@@ -55,48 +68,90 @@ const ChatSessionPage = () => {
   const session = sessionData?.data
   const availableDocuments = documentsData?.data || []
 
-  const createMessageMutation = useCreateChatMessage()
   const generateTitleMutation = useGenerateChatTitle()
+  const { streamChatMessage } = useChatSse()
+
+  const setAssistantMessageContent = (assistantMessageId: string, content: string) => {
+    setMessages((prev) =>
+      prev.map((message) => (message.id === assistantMessageId ? { ...message, content } : message))
+    )
+  }
+
+  const appendAssistantMessageContent = (assistantMessageId: string, chunk: string) => {
+    setMessages((prev) =>
+      prev.map((message) =>
+        message.id === assistantMessageId ? { ...message, content: message.content + chunk } : message
+      )
+    )
+  }
+
+  const streamMessage = async ({
+    sessionId,
+    content,
+    documents,
+    assistantMessageId,
+    onComplete,
+    errorLabel
+  }: {
+    sessionId: string
+    content: string
+    documents?: Pick<TDocument, 'id' | 'title'>[]
+    assistantMessageId: string
+    onComplete?: (data: TChatSseCompleteData) => void
+    errorLabel: string
+  }) => {
+    setIsSendingMessage(true)
+    setStreamStatusMessage('Thinking...')
+
+    try {
+      await streamChatMessage(
+        {
+          session_id: sessionId,
+          content,
+          document_ids: documents?.map((doc) => doc.id)
+        },
+        {
+          onChunk: (chunk) => {
+            setStreamStatusMessage(null)
+            appendAssistantMessageContent(assistantMessageId, chunk)
+          },
+          onToolStart: (data) => {
+            setStreamStatusMessage(data.message)
+          },
+          onComplete: (data) => {
+            setSessionDocuments(data.attached_documents || documents || [])
+            setAssistantMessageContent(assistantMessageId, data.assistant_message_content)
+            onComplete?.(data)
+          },
+          onError: (data) => {
+            setAssistantMessageContent(assistantMessageId, data.message)
+          }
+        }
+      )
+    } catch (error) {
+      console.error(errorLabel, error)
+    } finally {
+      setIsSendingMessage(false)
+      setStreamStatusMessage(null)
+    }
+  }
 
   const handleSendMessage = async ({ content, documents }: Parameters<TChatInputProps['onSend']>[0]) => {
     if (!chatSessionId) return
 
-    setIsSendingMessage(true)
+    const tempUserMessage = createTempMessage({ sessionId: chatSessionId, role: 'user', content })
+    const tempAssistantMessage = createTempMessage({ sessionId: chatSessionId, role: 'assistant' })
+    const assistantMessageId = tempAssistantMessage.id
 
-    const tempUserMessage: TChatMessage = {
-      id: `temp-${Date.now()}`,
-      session_id: chatSessionId,
-      role: 'user',
+    setMessages((prev) => [...prev, tempUserMessage, tempAssistantMessage])
+
+    await streamMessage({
+      sessionId: chatSessionId,
       content,
-      created_at: new Date().toISOString()
-    }
-
-    setMessages((prev) => [...prev, tempUserMessage])
-
-    try {
-      const response = await createMessageMutation.mutateAsync({
-        session_id: chatSessionId,
-        content,
-        document_ids: documents?.map((doc) => doc.id)
-      })
-
-      if (response?.data) {
-        setSessionDocuments(response.data.attached_documents || documents || [])
-
-        const assistantMessage: TChatMessage = {
-          id: `temp-assistant-${Date.now()}`,
-          session_id: chatSessionId,
-          role: 'assistant',
-          content: response.data.assistant_message_content,
-          created_at: new Date().toISOString()
-        }
-        setMessages((prev) => [...prev, assistantMessage])
-      }
-    } catch (error) {
-      console.error('error sending chat message', error)
-    } finally {
-      setIsSendingMessage(false)
-    }
+      documents,
+      assistantMessageId,
+      errorLabel: 'error sending chat message'
+    })
   }
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: we only want to handle the intermediate chat message when it changes
@@ -116,43 +171,23 @@ const ChatSessionPage = () => {
       const sessionId = intermediateChatMessage.session_id
       const content = intermediateChatMessage.content
       const attachedDocuments = intermediateChatMessage.attached_documents
-      setIsSendingMessage(true)
       setSessionDocuments(attachedDocuments || [])
-
-      const tempUserMessage: TChatMessage = {
-        id: `temp-user-${Date.now()}`,
-        session_id: sessionId,
-        role: 'user',
-        content,
-        created_at: new Date().toISOString()
-      }
+      const tempUserMessage = createTempMessage({ sessionId, role: 'user', content })
+      const tempAssistantMessage = createTempMessage({ sessionId, role: 'assistant' })
+      const assistantMessageId = tempAssistantMessage.id
 
       setMessages((prev) => {
-        if (prev.length === 0) {
-          return [...prev, tempUserMessage]
-        }
-
-        return prev
+        const existingMessages = prev.length === 0 ? [tempUserMessage] : prev
+        return [...existingMessages, tempAssistantMessage]
       })
 
-      try {
-        const response = await createMessageMutation.mutateAsync({
-          session_id: sessionId,
-          content,
-          document_ids: attachedDocuments?.map((doc) => doc.id)
-        })
-
-        if (response?.data) {
-          setSessionDocuments(response.data.attached_documents || attachedDocuments || [])
-
-          const assistantMessage: TChatMessage = {
-            id: `temp-assistant-${Date.now()}`,
-            session_id: sessionId,
-            role: 'assistant',
-            content: response.data.assistant_message_content,
-            created_at: new Date().toISOString()
-          }
-          setMessages((prev) => [...prev, assistantMessage])
+      await streamMessage({
+        sessionId,
+        content,
+        documents: attachedDocuments,
+        assistantMessageId,
+        errorLabel: 'Error sending intermediate chat message',
+        onComplete: () => {
           setIntermediateChatMessage(null)
 
           generateTitleMutation.mutate(
@@ -171,14 +206,14 @@ const ChatSessionPage = () => {
             }
           )
         }
-      } catch (error) {
-        console.error('Error sending intermediate chat message', error)
-      } finally {
-        setIsSendingMessage(false)
-      }
+      })
     }
 
-    asyncFn()
+    const timeoutId = window.setTimeout(() => {
+      asyncFn()
+    }, 0)
+
+    return () => window.clearTimeout(timeoutId)
   }, [intermediateChatMessage])
 
   useEffect(() => {
@@ -238,9 +273,9 @@ const ChatSessionPage = () => {
             <ChatMessageBlock key={msg.id} message={msg} />
           ))}
 
-          {isSendingMessage && (
+          {isSendingMessage && streamStatusMessage && (
             <TextShimmer duration={1} className="text-sm">
-              Thinking...
+              {streamStatusMessage}
             </TextShimmer>
           )}
 
