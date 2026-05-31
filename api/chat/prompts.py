@@ -31,8 +31,8 @@ def _format_document_catalog(documents: Sequence[Document]) -> Optional[str]:
 
 
 def build_system_message(
-    attached_docs: Sequence[Document],
     *,
+    attached_docs: Sequence[Document],
     max_tool_calls: int,
     personalization: Optional[dict[str, str]] = None,
 ) -> dict[str, str]:
@@ -74,6 +74,7 @@ def build_system_message(
         "- When you need to search for information, call semantic_search with multiple query variations (2-4 queries) to improve retrieval quality.",
         "- You can call list_documents to see the user's available documents (id, title, type, source name) when you need awareness of the library before searching. This does not attach documents to the conversation.",
         "- You can call get_full_document to retrieve the complete text of a document. WARNING: Use sparingly as full documents consume significant context. Prefer semantic_search for most queries.",
+        "- When calling get_full_document, use an exact document ID from the attached document catalog or list_documents result. Never invent document IDs.",
         "- Use tools when you need document-based answers. If attachments exist, restrict searches to them. If there are no attachments, search across the user's full document library.",
         f"- You have a maximum of {max_tool_calls} tool calls per conversation turn. After reaching this limit, provide your best answer with the information you have.",
         "- If no documents are attached, do not use semantic_search tool.",

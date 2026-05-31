@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any
 
 from langchain.agents import create_agent
+from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.runnables import RunnableConfig
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from pydantic import SecretStr
 
@@ -43,7 +46,11 @@ def _coerce_message_content(content: Any) -> str:
     return str(content).strip()
 
 
-def get_chat_model(temperature: float = LLM_TEMPERATURE) -> ChatOpenAI:
+def get_chat_model(
+    *,
+    temperature: float = LLM_TEMPERATURE,
+    streaming: bool = False,
+) -> ChatOpenAI:
     """Get configured ChatOpenAI model instance."""
     if not OPENAI_API_KEY:
         raise ValueError("OPENAI_API_KEY is not configured")
@@ -52,6 +59,8 @@ def get_chat_model(temperature: float = LLM_TEMPERATURE) -> ChatOpenAI:
         model=LLM_MODEL_NAME,
         temperature=temperature,
         api_key=SecretStr(OPENAI_API_KEY),
+        streaming=streaming,
+        stream_usage=True,
     )
 
 
@@ -176,8 +185,6 @@ def _extract_tool_metadata_from_messages(messages: list[BaseMessage]) -> dict[st
         # Extract document and chunk IDs from tool messages
         if isinstance(msg, ToolMessage):
             try:
-                import json
-
                 if isinstance(msg.content, str):
                     content_data = json.loads(msg.content)
                 else:
@@ -209,12 +216,45 @@ def _extract_tool_metadata_from_messages(messages: list[BaseMessage]) -> dict[st
     }
 
 
+def _token_usage_from_message(message: AIMessage) -> dict[str, int]:
+    usage = message.usage_metadata or {}
+    prompt_tokens = int(usage.get("input_tokens") or 0)
+    completion_tokens = int(usage.get("output_tokens") or 0)
+    total_tokens = int(usage.get("total_tokens") or prompt_tokens + completion_tokens)
+
+    return {
+        "prompt_tokens": prompt_tokens,
+        "completion_tokens": completion_tokens,
+        "total_tokens": total_tokens,
+    }
+
+
+def _extract_token_usage_from_messages(messages: list[BaseMessage]) -> dict[str, int]:
+    token_usage = {
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "total_tokens": 0,
+    }
+
+    for msg in messages:
+        if not isinstance(msg, AIMessage) or not msg.usage_metadata:
+            continue
+
+        message_usage = _token_usage_from_message(msg)
+        token_usage["prompt_tokens"] += message_usage["prompt_tokens"]
+        token_usage["completion_tokens"] += message_usage["completion_tokens"]
+        token_usage["total_tokens"] += message_usage["total_tokens"]
+
+    return token_usage
+
+
 def run_chat_with_tools(
     *,
     messages: list[dict[str, Any]],
     attached_document_ids: list[str],
     user,
     temperature: float = LLM_TEMPERATURE,
+    callbacks: list[BaseCallbackHandler] | None = None,
 ) -> dict[str, Any]:
     """Run chat with tools using LangChain agents.
 
@@ -228,7 +268,7 @@ def run_chat_with_tools(
         Dictionary containing answer, tool usage metadata, and token usage.
     """
     # Initialize models
-    llm = get_chat_model(temperature=temperature)
+    llm = get_chat_model(temperature=temperature, streaming=bool(callbacks))
     embeddings = get_embeddings_model()
 
     # Create tools with injected dependencies
@@ -249,9 +289,13 @@ def run_chat_with_tools(
 
     # Run agent
     try:
+        config: RunnableConfig = {"recursion_limit": LLM_MAX_TOOL_CALLS}
+        if callbacks:
+            config["callbacks"] = callbacks
+
         result = agent_executor.invoke(
             {"messages": langchain_messages},  # type: ignore
-            config={"recursion_limit": LLM_MAX_TOOL_CALLS},
+            config=config,
         )
 
         # Extract all messages from the result
@@ -267,21 +311,13 @@ def run_chat_with_tools(
         # Extract metadata
         metadata = _extract_tool_metadata_from_messages(all_messages)
 
-        # Estimate token usage (LangChain doesn't always provide this easily)
-        # For now, we'll return placeholder values
-        total_usage = {
-            "prompt_tokens": 0,
-            "completion_tokens": 0,
-            "total_tokens": 0,
-        }
-
         return {
             "answer": final_answer,
             "tool_call_count": metadata["tool_call_count"],
             "tool_calls": metadata["tool_calls_metadata"],
             "chunk_ids_used": metadata["chunk_ids_used"],
             "document_ids_used": metadata["document_ids_used"],
-            "token_usage": total_usage,
+            "token_usage": _extract_token_usage_from_messages(all_messages),
             "model_name": LLM_MODEL_NAME,
             "tools": ["semantic_search", "list_documents", "get_full_document"],
         }

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import uuid
 from typing import Any, Optional
 
 from django.db.models import Value
@@ -16,6 +17,12 @@ logger = logging.getLogger(__name__)
 DEFAULT_TOP_K = 5
 CHUNK_SNIPPET_LENGTH = 500
 MAX_QUERY_VARIATIONS = 4
+
+TOOL_LOADING_MESSAGES = {
+    "semantic_search": "Searching documents...",
+    "list_documents": "Fetching document metadata...",
+    "get_full_document": "Reading document...",
+}
 
 
 def truncate_chunk_text(text: str, limit: int = CHUNK_SNIPPET_LENGTH) -> str:
@@ -138,6 +145,39 @@ def _execute_semantic_search(
 def create_tools(embeddings_model: Embeddings, user, attached_document_ids: list[str]):
     """Create LangChain tools with injected dependencies."""
 
+    def find_document(document_id: str) -> tuple[Document | None, dict[str, Any]]:
+        requested_id = str(document_id or "").strip().strip("\"'")
+        qs = Document.objects.filter(owner=user, status=DOC_STATUS_COMPLETED)
+
+        if attached_document_ids:
+            qs = qs.filter(id__in=attached_document_ids)
+
+        try:
+            uuid.UUID(requested_id)
+        except ValueError:
+            return None, {
+                "error": "Invalid document_id. get_full_document requires an exact document UUID.",
+                "requested_document_id": requested_id,
+                "suggestion": (
+                    "Call list_documents to see which completed documents are accessible, "
+                    "then call get_full_document again with an exact document ID."
+                ),
+            }
+
+        document = qs.filter(id=requested_id).prefetch_related("chunks").first()
+
+        if document is not None:
+            return document, {}
+
+        return None, {
+            "error": "Document not found, not completed, or you don't have access to it",
+            "requested_document_id": requested_id,
+            "suggestion": (
+                "Call list_documents to see which completed documents are accessible, "
+                "then call get_full_document again with an exact document ID."
+            ),
+        }
+
     @tool
     def semantic_search(
         queries: list[str],
@@ -204,6 +244,8 @@ def create_tools(embeddings_model: Embeddings, user, attached_document_ids: list
 
         Use this when you need to read the entire document, not just search results.
         This reconstructs the full text from document chunks.
+        Use exact document IDs from the attached document catalog or list_documents results.
+        Do not invent IDs. If this tool returns a suggestion to call list_documents, do that before retrying.
 
         WARNING: Full documents can be very large and consume significant context.
         Use semantic_search for most queries. Only use this when:
@@ -212,28 +254,18 @@ def create_tools(embeddings_model: Embeddings, user, attached_document_ids: list
         - Semantic search doesn't return sufficient information
 
         Args:
-            document_id: The UUID of the document to retrieve
+            document_id: The UUID of the document to retrieve.
 
         Returns:
             Dictionary containing document metadata, full text, and size warnings.
         """
         try:
-            # Validate document access
-            document = (
-                Document.objects
-                .filter(
-                    id=document_id,
-                    owner=user,
-                    status=DOC_STATUS_COMPLETED,
-                )
-                .prefetch_related("chunks")
-                .first()
-            )
+            document, lookup_metadata = find_document(document_id)
 
             if not document:
                 return {
-                    "error": "Document not found, not completed, or you don't have access to it",
                     "document_id": document_id,
+                    **lookup_metadata,
                 }
 
             # Get all chunks in order and reconstruct full text
@@ -258,6 +290,7 @@ def create_tools(embeddings_model: Embeddings, user, attached_document_ids: list
                 "title": document.title,
                 "document_type": document.document_type,
                 "full_text": full_text,
+                **lookup_metadata,
             }
 
             # Add warning for large documents
